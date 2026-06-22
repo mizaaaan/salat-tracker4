@@ -1,25 +1,26 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Image, StyleSheet, Animated, Easing } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../constants/ThemeContext';
 
 /**
- * Today's prayer progress — styled like a tasbih (prayer beads) strand
- * instead of a plain progress bar.
+ * Today's prayer progress — styled like a tasbih (prayer beads) strand.
+ * Each bead shows the prayer's image (round) when pending,
+ * and a coloured filled circle with ✓ when completed.
  *
  * Props:
  *   prayers      — ordered array of trackable prayer names, e.g. TRACKABLE_PRAYERS
  *   completed    — array of completed prayer names
  *   nextPrayer   — name of the next upcoming prayer (gets a soft pulse)
- *   prayerMeta   — { [name]: { icon, color } }
+ *   prayerMeta   — { [name]: { icon, image, color } }
  */
 export default function PrayerProgressBar({ prayers, completed, nextPrayer, prayerMeta }) {
   const { colors: Colors } = useTheme();
   const styles = getStyles(Colors);
 
-  const total = prayers.length;
+  const total     = prayers.length;
   const doneCount = prayers.filter((p) => completed.includes(p)).length;
-  const percent = total > 0 ? doneCount / total : 0;
+  const percent   = total > 0 ? doneCount / total : 0;
 
   // ── Ring badge geometry ──
   const RING_SIZE = 52;
@@ -49,7 +50,7 @@ export default function PrayerProgressBar({ prayers, completed, nextPrayer, pray
     return () => loop.stop();
   }, [pulse]);
 
-  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
+  const pulseScale   = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] });
 
   return (
@@ -96,47 +97,67 @@ export default function PrayerProgressBar({ prayers, completed, nextPrayer, pray
 
       {/* ── Beads strand ── */}
       <View style={styles.beadsRow}>
+        {/* connector line behind the beads */}
         <View style={styles.connector} pointerEvents="none" />
+
         {prayers.map((name) => {
           const isDone = completed.includes(name);
           const isNext = !isDone && name === nextPrayer;
-          const meta = prayerMeta[name] || {};
+          const meta   = prayerMeta[name] || {};
+          const accent = meta.color || Colors.primary;
 
           return (
             <View key={name} style={styles.beadColumn}>
               <View style={styles.beadCenter}>
+
+                {/* Pulse ring for the upcoming prayer */}
                 {isNext && (
                   <Animated.View
                     style={[
                       styles.beadPulse,
-                      {
-                        borderColor: meta.color || Colors.primary,
-                        opacity: pulseOpacity,
-                        transform: [{ scale: pulseScale }],
-                      },
+                      { borderColor: accent, opacity: pulseOpacity, transform: [{ scale: pulseScale }] },
                     ]}
                   />
                 )}
-                <View
-                  style={[
-                    styles.bead,
-                    isDone
-                      ? { backgroundColor: meta.color || Colors.primary, borderColor: meta.color || Colors.primary }
-                      : styles.beadPending,
-                    isNext && { borderColor: meta.color || Colors.primary, borderWidth: 2 },
-                  ]}
-                >
-                  {isDone ? (
+
+                {isDone ? (
+                  /* ── Completed: solid coloured circle with ✓ ── */
+                  <View
+                    style={[
+                      styles.bead,
+                      { backgroundColor: accent, borderColor: accent },
+                    ]}
+                  >
                     <Text style={styles.beadCheck}>✓</Text>
-                  ) : (
-                    <Text style={styles.beadIcon}>{meta.icon}</Text>
-                  )}
-                </View>
+                  </View>
+                ) : (
+                  /* ── Pending / next: round image ── */
+                  <View
+                    style={[
+                      styles.bead,
+                      styles.beadPending,
+                      isNext && { borderColor: accent, borderWidth: 2.5 },
+                    ]}
+                  >
+                    {meta.image ? (
+                      <Image
+                        source={meta.image}
+                        style={styles.beadImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      /* Fallback: emoji icon if no image */
+                      <Text style={styles.beadIcon}>{meta.icon}</Text>
+                    )}
+                  </View>
+                )}
               </View>
+
               <Text
                 style={[
                   styles.beadLabel,
                   isDone && { color: Colors.text, fontWeight: '700' },
+                  isNext && { color: accent, fontWeight: '600' },
                 ]}
                 numberOfLines={1}
               >
@@ -150,17 +171,17 @@ export default function PrayerProgressBar({ prayers, completed, nextPrayer, pray
   );
 }
 
-const BEAD = 38;
+const BEAD = 42; // slightly larger to show images nicely
 
 const getStyles = (Colors) => StyleSheet.create({
   wrap: {
-    marginHorizontal: 16,
-    marginVertical:   10,
-    backgroundColor:  Colors.card,
-    borderRadius:     18,
-    borderWidth:      1,
-    borderColor:      Colors.border,
-    paddingVertical:  16,
+    marginHorizontal:  16,
+    marginVertical:    10,
+    backgroundColor:   Colors.card,
+    borderRadius:      18,
+    borderWidth:       1,
+    borderColor:       Colors.border,
+    paddingVertical:   16,
     paddingHorizontal: 16,
   },
 
@@ -172,14 +193,14 @@ const getStyles = (Colors) => StyleSheet.create({
     marginBottom:  18,
   },
   ringBadge: {
-    width:      52,
-    height:     52,
-    alignItems: 'center',
+    width:          52,
+    height:         52,
+    alignItems:     'center',
     justifyContent: 'center',
   },
   ringLabelWrap: {
-    position: 'absolute',
-    alignItems: 'center',
+    position:       'absolute',
+    alignItems:     'center',
     justifyContent: 'center',
   },
   ringLabel: {
@@ -187,18 +208,16 @@ const getStyles = (Colors) => StyleSheet.create({
     fontSize:   12,
     fontWeight: '800',
   },
-  headerTextWrap: {
-    flex: 1,
-  },
+  headerTextWrap: { flex: 1 },
   headerTitle: {
     color:      Colors.text,
     fontSize:   15,
     fontWeight: '700',
   },
   headerSub: {
-    color:      Colors.textSecondary,
-    fontSize:   12,
-    marginTop:  2,
+    color:     Colors.textSecondary,
+    fontSize:  12,
+    marginTop: 2,
   },
 
   // Beads strand
@@ -210,14 +229,14 @@ const getStyles = (Colors) => StyleSheet.create({
   connector: {
     position:        'absolute',
     top:             BEAD / 2 - 1,
-    left:            BEAD / 2,
-    right:           BEAD / 2,
+    left:            BEAD / 2 + 2,
+    right:           BEAD / 2 + 2,
     height:          2,
     backgroundColor: Colors.border,
   },
   beadColumn: {
     alignItems: 'center',
-    width:      BEAD + 10,
+    width:      BEAD + 8,
   },
   beadCenter: {
     alignItems:     'center',
@@ -233,22 +252,28 @@ const getStyles = (Colors) => StyleSheet.create({
   bead: {
     width:          BEAD,
     height:         BEAD,
-    borderRadius:   BEAD / 2,
+    borderRadius:   BEAD / 2,   // perfect circle
     borderWidth:    1,
     alignItems:     'center',
     justifyContent: 'center',
+    overflow:       'hidden',   // clips image to circle
   },
   beadPending: {
     backgroundColor: Colors.cardLight,
     borderColor:     Colors.border,
   },
+  beadImage: {
+    width:        BEAD,
+    height:       BEAD,
+    borderRadius: BEAD / 2,
+  },
   beadIcon: {
-    fontSize: 16,
+    fontSize: 18,
     opacity:  0.8,
   },
   beadCheck: {
     color:      Colors.background,
-    fontSize:   16,
+    fontSize:   17,
     fontWeight: '800',
   },
   beadLabel: {
