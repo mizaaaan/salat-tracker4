@@ -33,13 +33,13 @@ const PRAYER_TINT = {
   Isha:    'rgba(5,   5,  18, 0.38)',
 };
 
-// ── Arc geometry — true semicircle (D-shape), equal radii ─────────────────────
+// ── Arc geometry — ELLIPTICAL arc that fits inside the card ───────────────────
 const ARC_W   = CARD_W - 48;
 const LEFT_X  = 10;
 const RIGHT_X = ARC_W - 10;
 
 const ARC_RX  = (RIGHT_X - LEFT_X) / 2;   // horizontal radius
-const ARC_RY  = ARC_RX;                   // equal radii → true circle, not an ellipse
+const ARC_RY  = Math.round(ARC_RX * 0.38); // ← flatter ellipse (was equal to ARC_RX)
 const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
 const BASE_Y  = ARC_RY + 8;
 const ARC_H   = BASE_Y + 8;
