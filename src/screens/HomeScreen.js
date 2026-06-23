@@ -212,6 +212,7 @@ export default function HomeScreen() {
             fajrTime={prayerTimes?.Fajr}
             maghribTime={prayerTimes?.Maghrib}
             nextFajrTime={tomorrowFajr}
+            allPrayerTimes={prayerTimes}
           />
         )}
 
