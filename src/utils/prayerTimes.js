@@ -2,7 +2,7 @@ import { Coordinates, CalculationMethod, PrayerTimes, Qibla } from 'adhan';
 
 // The 5 trackable prayers (Sunrise is display-only)
 export const TRACKABLE_PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-export const ALL_PRAYERS       = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+export const ALL_PRAYERS       = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 export const PRAYER_META = {
   Fajr:    { icon: '🌅', image: require('../../assets/prayers/fajr.png'),    arabic: 'الفجر',   color: '#7B8CDE' },
