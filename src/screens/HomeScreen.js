@@ -231,6 +231,7 @@ export default function HomeScreen() {
               name={prayer}
               meta={PRAYER_META[prayer]}
               time={formatTime(prayerTimes?.[prayer])}
+              endTime={getEndTime(prayer, prayerTimes ?? {})}
               isCompleted={completedPrayers.includes(prayer)}
               isTrackable={TRACKABLE_PRAYERS.includes(prayer)}
               onToggle={() => handleToggle(prayer)}

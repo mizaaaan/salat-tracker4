@@ -16,7 +16,7 @@ import { useTheme } from '../constants/ThemeContext';
  *   onToggle    — () => void
  */
 export default function PrayerCard({
-  name, meta, time, isCompleted, isTrackable, onToggle,
+  name, meta, time, endTime, isCompleted, isTrackable, onToggle,
 }) {
   const { colors: Colors } = useTheme();
 
@@ -114,9 +114,20 @@ export default function PrayerCard({
 
           {/* Time + status */}
           <View style={styles.rightCol}>
-            <Animated.Text style={[styles.time, { color: timeColor }]}>
-              {time}
-            </Animated.Text>
+            {/* Start → End time range */}
+            <View style={styles.timeRange}>
+              <Animated.Text style={[styles.time, { color: timeColor }]}>
+                {time}
+              </Animated.Text>
+              {endTime ? (
+                <>
+                  <Text style={[styles.timeSep, { color: Colors.textMuted }]}> — </Text>
+                  <Text style={[styles.timeEnd, { color: Colors.textSecondary }]}>
+                    {endTime}
+                  </Text>
+                </>
+              ) : null}
+            </View>
 
             {isTrackable ? (
               /* Animated ring → filled circle on completion */
@@ -227,13 +238,29 @@ const styles = StyleSheet.create({
 
   // Right: time + ring
   rightCol: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     gap:        10,
   },
+  timeRange: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    flexWrap:      'wrap',
+    justifyContent:'flex-end',
+  },
   time: {
-    fontSize:      14,
+    fontSize:      13,
     fontWeight:    '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    textAlign:     'right',
+  },
+  timeSep: {
+    fontSize:   12,
+    fontWeight: '400',
+  },
+  timeEnd: {
+    fontSize:      13,
+    fontWeight:    '500',
+    letterSpacing: 0.3,
     textAlign:     'right',
   },
 
