@@ -23,9 +23,23 @@ import { useTheme } from '../constants/ThemeContext';
 
 // ── Bismillah ──────────────────────────────────────────────────────────────────
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
-// Surah 1  (Al-Fatiha) — Bismillah IS verse 1; keep it in ayah list, skip gold header
-// Surah 9  (At-Tawbah) — No Bismillah at all
+// Surah 1 (Al-Fatiha) — Bismillah IS verse 1; keep in ayah list, skip gold header
+// Surah 9 (At-Tawbah) — No Bismillah at all
 const NO_BISMILLAH = new Set([1, 9]);
+
+// The quran-uthmani API embeds the bismillah inside the Arabic text of each
+// surah's first ayah (e.g. Surah 2 ayah 1 = "بسم الله … الٓمٓ").
+// We show it as the gold header instead, so strip those first 4 words from
+// the ayah's Arabic field.  Splitting on whitespace is script-agnostic and
+// handles both alef variants (ا / ٱ) without fragile regex unicode escapes.
+const stripBismillah = (text) => {
+  const t = text.trim();
+  // Bismillah opens with بِسْمِ (U+0628 U+0650 U+0633 U+0652 U+0645 U+0650)
+  if (!t.startsWith('\u0628\u0650\u0633\u0652\u0645\u0650')) return t;
+  const words = t.split(/\s+/);
+  // Bismillah = exactly 4 words; if fewer remain, something is off — keep as-is
+  return words.length > 4 ? words.slice(4).join(' ') : t;
+};
 
 // ── API ────────────────────────────────────────────────────────────────────────
 const BASE = 'https://api.alquran.cloud/v1';
@@ -172,14 +186,17 @@ export default function QuranScreen() {
             bangla:        banglaAyahs[i]?.text  ?? '',
           }));
 
-          // The API prepends Bismillah as an ayah with numberInSurah = 0 for
-          // surahs 2-8, 10-114.  We show it as the gold header instead, so
-          // filter it out here.  Surah 1 & 9 are excluded via NO_BISMILLAH:
-          //   Surah 1 — Bismillah IS verse 1 (numberInSurah=1), keep it
-          //   Surah 9 — no Bismillah prepended at all
+          // The quran-uthmani API embeds the bismillah inside the Arabic text of
+          // the first real ayah (e.g. Surah 2 ayah 1 = "بسم الله … الٓمٓ").
+          // For surahs that show the gold header (not 1 or 9), strip that
+          // embedded bismillah so it only appears in the header, not the ayah.
+          // Surah 1: bismillah IS verse 1 — leave arabic untouched, no header.
+          // Surah 9: no bismillah — leave arabic untouched, no header.
           const stripped = NO_BISMILLAH.has(surahMeta.number)
             ? merged
-            : merged.filter(a => a.numberInSurah !== 0);
+            : merged.map((a, i) =>
+                i === 0 ? { ...a, arabic: stripBismillah(a.arabic) } : a
+              );
 
           setAyahs(stripped);
           setSurahStatus('ok');
@@ -352,7 +369,7 @@ export default function QuranScreen() {
                 </Text>
               </View>
 
-              {/* Bismillah gold header — skip for Surah 1 (it IS verse 1) and Surah 9 (none) */}
+              {/* Bismillah */}
               {!NO_BISMILLAH.has(selected?.number) && (
                 <View style={styles.bismillahWrap}>
                   <Text style={[styles.bismillah, { color: Colors.primary }]}>
