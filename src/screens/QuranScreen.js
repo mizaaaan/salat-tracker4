@@ -23,8 +23,9 @@ import { useTheme } from '../constants/ThemeContext';
 
 // ── Bismillah ──────────────────────────────────────────────────────────────────
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
-// Surah 9 (At-Tawbah) has no Bismillah
-const NO_BISMILLAH = new Set([9]);
+// Surah 1  (Al-Fatiha) — Bismillah IS verse 1; keep it in ayah list, skip gold header
+// Surah 9  (At-Tawbah) — No Bismillah at all
+const NO_BISMILLAH = new Set([1, 9]);
 
 // ── API ────────────────────────────────────────────────────────────────────────
 const BASE = 'https://api.alquran.cloud/v1';
@@ -171,11 +172,14 @@ export default function QuranScreen() {
             bangla:        banglaAyahs[i]?.text  ?? '',
           }));
 
-          // Strip the first ayah (Bismillah) for every surah except At-Tawbah (9).
-          // The API always prepends it as ayah 1; we show it instead as the gold header.
+          // The API prepends Bismillah as an ayah with numberInSurah = 0 for
+          // surahs 2-8, 10-114.  We show it as the gold header instead, so
+          // filter it out here.  Surah 1 & 9 are excluded via NO_BISMILLAH:
+          //   Surah 1 — Bismillah IS verse 1 (numberInSurah=1), keep it
+          //   Surah 9 — no Bismillah prepended at all
           const stripped = NO_BISMILLAH.has(surahMeta.number)
             ? merged
-            : merged.slice(1);
+            : merged.filter(a => a.numberInSurah !== 0);
 
           setAyahs(stripped);
           setSurahStatus('ok');
@@ -348,7 +352,7 @@ export default function QuranScreen() {
                 </Text>
               </View>
 
-              {/* Bismillah */}
+              {/* Bismillah gold header — skip for Surah 1 (it IS verse 1) and Surah 9 (none) */}
               {!NO_BISMILLAH.has(selected?.number) && (
                 <View style={styles.bismillahWrap}>
                   <Text style={[styles.bismillah, { color: Colors.primary }]}>
