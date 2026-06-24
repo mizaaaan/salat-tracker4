@@ -7,6 +7,7 @@ import Svg, {
   Path, Circle, Rect,
   Defs, LinearGradient as SvgGradient, Stop,
 } from 'react-native-svg';
+import { PRAYER_META } from '../utils/prayerTimes';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -346,8 +347,8 @@ export default function NextPrayerBanner({
             <View style={styles.arcInfoOverlay}>
               <Text style={styles.hijriDate}>{hijriDate}</Text>
               <Text style={styles.prayerName}>{displayName}</Text>
-              {meta?.arabic ? (
-                <Text style={styles.arabicName}>{meta.arabic}</Text>
+              {PRAYER_META[displayName]?.arabic ? (
+                <Text style={styles.arabicName}>{PRAYER_META[displayName].arabic}</Text>
               ) : null}
               {/* Live countdown — auto-switches prayer period every second */}
               {live ? (
