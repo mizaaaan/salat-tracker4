@@ -238,19 +238,24 @@ export default function HomeScreen() {
           prayerMeta={PRAYER_META}
         />
 
-        {/* Prayer cards */}
-        <View style={styles.list}>
-          {ALL_PRAYERS.map((prayer) => (
-            <PrayerCard
-              key={prayer}
-              name={prayer}
-              meta={PRAYER_META[prayer]}
-              time={formatTime(prayerTimes?.[prayer])}
-              endTime={getEndTime(prayer, prayerTimes ?? {}, tomorrowFajr)}
-              isCompleted={completedPrayers.includes(prayer)}
-              isTrackable={TRACKABLE_PRAYERS.includes(prayer)}
-              onToggle={() => handleToggle(prayer)}
-            />
+        {/* Prayer list — all prayers inside one streak-style card */}
+        <View style={styles.listCard}>
+          {ALL_PRAYERS.map((prayer, index) => (
+            <View key={prayer}>
+              <PrayerCard
+                name={prayer}
+                meta={PRAYER_META[prayer]}
+                time={formatTime(prayerTimes?.[prayer])}
+                endTime={getEndTime(prayer, prayerTimes ?? {}, tomorrowFajr)}
+                isCompleted={completedPrayers.includes(prayer)}
+                isTrackable={TRACKABLE_PRAYERS.includes(prayer)}
+                onToggle={() => handleToggle(prayer)}
+              />
+              {/* Divider between rows — not after the last one */}
+              {index < ALL_PRAYERS.length - 1 && (
+                <View style={styles.divider} />
+              )}
+            </View>
           ))}
         </View>
 
@@ -314,9 +319,26 @@ const getStyles = (Colors) => StyleSheet.create({
     marginTop: 4,
   },
 
-  // Prayer list
-  list: {
-    paddingHorizontal: 16,
-    paddingTop:        8,
+  // Prayer list — single card container (matches streak card style)
+  listCard: {
+    marginHorizontal: 16,
+    marginTop:        8,
+    backgroundColor:  Colors.night,
+    borderRadius:     24,
+    borderWidth:      1,
+    borderColor:      Colors.primary + '40',
+    overflow:         'hidden',     // clips rows to card corners
+    shadowColor:      Colors.primary,
+    shadowOffset:     { width: 0, height: 0 },
+    shadowOpacity:    0.15,
+    shadowRadius:     20,
+    elevation:        6,
+  },
+
+  // Thin divider between prayer rows
+  divider: {
+    height:          1,
+    marginHorizontal: 22,
+    backgroundColor: Colors.border,
   },
 });
