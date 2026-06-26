@@ -30,13 +30,17 @@ const PRAYER_TINT = {
 
 // ── Arc geometry — computed dynamically from screen width ────────────────────
 // Call useArcLayout() inside each component/render that needs these values.
-function computeArcLayout(screenW) {
+function computeArcLayout(screenW, screenH) {
   const CARD_W  = screenW - 32;
   const ARC_W   = CARD_W - 48;
   const LEFT_X  = 10;
   const RIGHT_X = ARC_W - 10;
   const ARC_RX  = (RIGHT_X - LEFT_X) / 2;
-  const ARC_RY  = ARC_RX;                    // perfect semicircle
+  // Cap ARC_RY so the banner never overflows in landscape rotation.
+  // In portrait ARC_RX ≈ 145 → ARC_RY = 145 (looks like semicircle).
+  // In landscape ARC_RX ≈ 370 → without cap card = 445 px, taller than screen.
+  const MAX_ARC_H = screenH ? Math.min(screenH * 0.28, 150) : 150;
+  const ARC_RY  = Math.min(ARC_RX, MAX_ARC_H); // flatten arc on wide screens
   const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
   const BASE_Y  = ARC_RY + 8;
   const ARC_H   = BASE_Y + 8;
@@ -270,9 +274,9 @@ export default function NextPrayerBanner({
   onLocationPress,
   allPrayerTimes,       // ← full { Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha } Date objects
 }) {
-  const { width: screenW } = useWindowDimensions();
-  // Recompute arc layout whenever screen width changes (rotation)
-  const layout = computeArcLayout(screenW);
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  // Recompute arc layout whenever screen dimensions change (rotation)
+  const layout = computeArcLayout(screenW, screenH);
   const { CARD_W, ARC_W, LEFT_X, RIGHT_X, ARC_RX, ARC_RY, BASE_Y, ARC_H, CARD_H, arcPointAt } = layout;
 
   const locLabel = location || 'Local';
