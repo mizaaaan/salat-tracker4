@@ -40,10 +40,6 @@ export default function PrayerCard({
   };
 
   // Animated colour interpolations
-  const leftBarColor = doneAnim.interpolate({
-    inputRange:  [0, 1],
-    outputRange: [meta.color, Colors.primary],
-  });
   const overlayOpacity = doneAnim.interpolate({
     inputRange:  [0, 1],
     outputRange: [0, 0.10],
@@ -71,8 +67,7 @@ export default function PrayerCard({
         {/* Subtle gold wash on completion */}
         <Animated.View style={[styles.wash, { backgroundColor: Colors.primary, opacity: overlayOpacity }]} />
 
-        {/* Left accent bar */}
-        <Animated.View style={[styles.leftBar, { backgroundColor: leftBarColor, shadowColor: meta.color }]} />
+
 
         {/* Icon */}
         <View style={[styles.iconBox, { backgroundColor: meta.color + '20', borderColor: meta.color + '30' }]}>
@@ -135,15 +130,6 @@ const styles = StyleSheet.create({
   },
 
   wash: { ...StyleSheet.absoluteFillObject },
-
-  leftBar: {
-    position:     'absolute',
-    left:         0,
-    top:          10,
-    bottom:       10,
-    width:        3,
-    borderRadius: 3,
-  },
 
   iconBox: {
     width:          44,
