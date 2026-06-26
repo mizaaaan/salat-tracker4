@@ -1,8 +1,12 @@
 import { Coordinates, CalculationMethod, PrayerTimes, Qibla } from 'adhan';
 
-// The 5 trackable prayers (Sunrise is display-only)
+// The 5 trackable prayers (Sunrise is display-only, not marked done)
 export const TRACKABLE_PRAYERS = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-export const ALL_PRAYERS       = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+// BUG 2 FIX: ALL_PRAYERS now includes Sunrise so it renders as a display-only
+// card in HomeScreen. PrayerCard handles isTrackable=false automatically
+// (no checkbox, reduced opacity).
+export const ALL_PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
 export const PRAYER_META = {
   Fajr:    { icon: '🌅', image: require('../../assets/prayers/fajr.png'),    arabic: 'الفجر',   color: '#7B8CDE' },
@@ -19,9 +23,8 @@ export const PRAYER_META = {
  */
 export const calculatePrayerTimes = (latitude, longitude, date = new Date()) => {
   const coordinates = new Coordinates(latitude, longitude);
-  // Karachi method used widely in Bangladesh, Pakistan, India
-  const params     = CalculationMethod.Karachi();
-  const times      = new PrayerTimes(coordinates, date, params);
+  const params      = CalculationMethod.Karachi();
+  const times       = new PrayerTimes(coordinates, date, params);
 
   return {
     Fajr:    times.fajr,
@@ -38,25 +41,23 @@ export const calculatePrayerTimes = (latitude, longitude, date = new Date()) => 
  */
 export const calculateQibla = (latitude, longitude) => {
   const coordinates = new Coordinates(latitude, longitude);
-  return Qibla(coordinates); // number: degrees from North
+  return Qibla(coordinates);
 };
 
 /**
  * Finds the next upcoming prayer after now.
- * If every prayer for today has already passed (i.e. it's after Isha),
- * rolls over and returns tomorrow's Fajr — provided latitude/longitude
- * are passed in so tomorrow's times can be calculated.
- * Returns { name, time } or null if it can't be determined.
+ * Iterates TRACKABLE_PRAYERS only — Sunrise is not a prayer to "count down to".
+ * After all today's prayers pass (post-Isha), rolls over to tomorrow's Fajr.
  */
 export const getNextPrayer = (prayerTimes, latitude, longitude) => {
   const now = new Date();
-  for (const name of ALL_PRAYERS) {
+  for (const name of TRACKABLE_PRAYERS) {
     if (prayerTimes[name] && prayerTimes[name] > now) {
       return { name, time: prayerTimes[name] };
     }
   }
 
-  // All of today's prayers have passed (post-Isha) — roll over to tomorrow's Fajr
+  // All of today's prayers have passed — roll over to tomorrow's Fajr
   if (latitude != null && longitude != null) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -68,8 +69,7 @@ export const getNextPrayer = (prayerTimes, latitude, longitude) => {
 };
 
 /**
- * Returns tomorrow's Fajr time for a given location — used to anchor the
- * night-time (Maghrib → Fajr) arc once today's Maghrib has passed.
+ * Returns tomorrow's Fajr time for a given location.
  */
 export const getTomorrowFajr = (latitude, longitude) => {
   if (latitude == null || longitude == null) return null;
@@ -105,26 +105,20 @@ export const getCountdown = (targetDate) => {
 
 /**
  * Returns the CURRENT active prayer and the Date when it ends.
- * e.g. if it's 12:30 PM → { name: 'Dhuhr', endsAt: <Asr Date> }
- *
- * PRAYER_END_ORDER: each prayer ends when the next one begins.
- * Isha ends at tomorrow's Fajr, so caller should pass tomorrowFajr.
  */
 export const getCurrentPrayer = (prayerTimes, tomorrowFajr = null) => {
-  const now    = new Date();
-  const order  = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  const now   = new Date();
+  const order = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
   for (let i = order.length - 1; i >= 0; i--) {
     const name      = order[i];
     const startTime = prayerTimes[name];
     if (startTime && now >= startTime) {
-      // Found the current prayer — its end time is the next prayer's start
-      const nextName    = order[i + 1];
-      const nextStart   = nextName ? prayerTimes[nextName] : null;
-      const endsAt      = nextStart ?? tomorrowFajr ?? null;
+      const nextName  = order[i + 1];
+      const nextStart = nextName ? prayerTimes[nextName] : null;
+      const endsAt    = nextStart ?? tomorrowFajr ?? null;
       return { name, endsAt };
     }
   }
-  // Before Fajr — still in Isha from yesterday (or no data)
   return null;
 };
