@@ -1,3 +1,15 @@
+/**
+ * QiblaScreen
+ *
+ * BUG 3 FIX: `spin` Animated interpolation was computed but never used in JSX.
+ * The needle's transform was using a raw static string `${needleRotation}deg`
+ * instead of the Animated value, so the needle snapped instantly with no
+ * smooth rotation. Fixed by:
+ *   1. Broadening the inputRange to [-7200, 7200] so it handles unbounded
+ *      angle accumulation without clamping.
+ *   2. Passing `spin` (the Animated interpolation) to the needle's transform.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet,
@@ -10,18 +22,17 @@ import Svg, { Circle, Line, G, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../constants/ThemeContext';
 import { calculateQibla } from '../utils/prayerTimes';
 
-// Ticks are rendered with a computed SIZE passed in as props
-
+// ── Compass ticks ─────────────────────────────────────────────────────────────
 const Ticks = ({ Colors, SIZE, CENTER, RADIUS }) => {
   const ticks = [];
   for (let i = 0; i < 72; i++) {
-    const isMajor  = i % 9 === 0;
-    const angle    = (i * 5 * Math.PI) / 180;
-    const r1       = isMajor ? RADIUS - 14 : RADIUS - 8;
-    const x1       = CENTER + r1   * Math.sin(angle);
-    const y1       = CENTER - r1   * Math.cos(angle);
-    const x2       = CENTER + RADIUS * Math.sin(angle);
-    const y2       = CENTER - RADIUS * Math.cos(angle);
+    const isMajor = i % 9 === 0;
+    const angle   = (i * 5 * Math.PI) / 180;
+    const r1 = isMajor ? RADIUS - 14 : RADIUS - 8;
+    const x1 = CENTER + r1      * Math.sin(angle);
+    const y1 = CENTER - r1      * Math.cos(angle);
+    const x2 = CENTER + RADIUS  * Math.sin(angle);
+    const y2 = CENTER - RADIUS  * Math.cos(angle);
     ticks.push(
       <Line
         key={i}
@@ -34,26 +45,28 @@ const Ticks = ({ Colors, SIZE, CENTER, RADIUS }) => {
   return <>{ticks}</>;
 };
 
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function QiblaScreen() {
   const { colors: Colors } = useTheme();
-  const { width, height } = useWindowDimensions();
+  const { width, height }  = useWindowDimensions();
 
-  // Responsive compass — scales down in landscape to fit the shorter height
+  // Responsive compass — scales down in landscape to fit shorter height
   const SIZE   = Math.min(260, Math.min(width, height) * 0.68);
   const CENTER = SIZE / 2;
   const RADIUS = SIZE * 0.45;
 
   const styles = getStyles(Colors, SIZE);
 
-  const [heading,    setHeading]    = useState(0);
-  const [qibla,      setQibla]      = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
+  const [heading, setHeading] = useState(0);
+  const [qibla,   setQibla]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
 
-  const animAngle = useRef(new Animated.Value(0)).current;
+  // Accumulates angle (avoids 350° spin the wrong way via shortest-path logic)
+  const animAngle    = useRef(new Animated.Value(0)).current;
   const currentAngle = useRef(0);
 
-  // ── Setup: location + compass heading ─────────────────────────────────────
+  // ── Location + compass heading ────────────────────────────────────────────
   useEffect(() => {
     let headingSub;
 
@@ -70,11 +83,6 @@ export default function QiblaScreen() {
       setQibla(q);
       setLoading(false);
 
-      // Use the device's native compass heading (iOS Core Location) instead of
-      // computing it by hand from raw magnetometer x/y — that math is
-      // orientation/axis-convention dependent and was giving the wrong angle.
-      // trueHeading is corrected for magnetic declination using GPS; it reads
-      // -1 until that correction is ready, so fall back to magHeading then.
       headingSub = await Location.watchHeadingAsync(({ trueHeading, magHeading }) => {
         const h = trueHeading >= 0 ? trueHeading : magHeading;
         setHeading(h);
@@ -85,16 +93,17 @@ export default function QiblaScreen() {
     return () => headingSub?.remove();
   }, []);
 
-  // ── Animate needle rotation smoothly ──────────────────────────────────────
+  // ── Animate needle via shortest-path accumulation ─────────────────────────
   useEffect(() => {
     if (qibla === null) return;
-    // Needle points toward Qibla relative to the device's current facing
-    let target = (qibla - heading + 360) % 360;
 
-    // Shortest-path rotation to avoid spinning 350° the wrong way
+    const target = (qibla - heading + 360) % 360;
+
+    // Shortest-path delta so the needle never spins 350° the wrong way
     let diff = target - currentAngle.current;
     if (diff > 180)  diff -= 360;
     if (diff < -180) diff += 360;
+
     const next = currentAngle.current + diff;
     currentAngle.current = next;
 
@@ -105,12 +114,16 @@ export default function QiblaScreen() {
     }).start();
   }, [heading, qibla]);
 
+  // BUG 3 FIX: broad inputRange handles unbounded angle accumulation
+  // (currentAngle.current can exceed ±360 after many heading updates).
+  // A linear 1:1 mapping from number → degrees is always correct here.
   const spin = animAngle.interpolate({
-    inputRange:  [currentAngle.current - 360, currentAngle.current + 360],
-    outputRange: [`${currentAngle.current - 360}deg`, `${currentAngle.current + 360}deg`],
+    inputRange:  [-7200, 7200],
+    outputRange: ['-7200deg', '7200deg'],
+    extrapolate: 'extend',   // never clamp, even if range is exceeded
   });
 
-  // ── Loading / error states ─────────────────────────────────────────────────
+  // ── Loading / error ───────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -133,54 +146,43 @@ export default function QiblaScreen() {
     );
   }
 
-  const needleRotation = qibla !== null ? (qibla - heading + 360) % 360 : 0;
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
 
-        {/* Title */}
         <Text style={styles.title}>🕋 Qibla Direction</Text>
         <Text style={styles.subtitle}>Point your phone to find Mecca</Text>
 
         {/* Compass */}
         <View style={[styles.compassShell, { width: SIZE, height: SIZE, borderRadius: SIZE / 2 }]}>
-          {/* Compass face */}
+
+          {/* Static compass face — dial rotates to match real-world N/E/S/W */}
           <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-            {/* Background (stays still) */}
             <Circle cx={CENTER} cy={CENTER} r={RADIUS} fill={Colors.card} />
-            {/* Outer glow ring (stays still) */}
             <Circle
               cx={CENTER} cy={CENTER} r={RADIUS + 4}
               fill="none" stroke={Colors.primary} strokeWidth="1" opacity="0.3"
             />
-            {/* Rotating dial: ticks + N/E/S/W spin opposite the device's
-                heading so whichever letter is at the top always matches the
-                real-world direction the top of the phone is pointing at —
-                exactly like the iOS Compass app. */}
             <G rotation={-heading} origin={`${CENTER}, ${CENTER}`}>
               <Ticks Colors={Colors} SIZE={SIZE} CENTER={CENTER} RADIUS={RADIUS} />
-              <SvgText x={CENTER} y={20} textAnchor="middle"
-                fill={Colors.primary} fontSize="16" fontWeight="bold">N</SvgText>
-              <SvgText x={SIZE - 14} y={CENTER + 5} textAnchor="middle"
-                fill={Colors.textSecondary} fontSize="14">E</SvgText>
-              <SvgText x={CENTER} y={SIZE - 8} textAnchor="middle"
-                fill={Colors.textSecondary} fontSize="14">S</SvgText>
-              <SvgText x={14} y={CENTER + 5} textAnchor="middle"
-                fill={Colors.textSecondary} fontSize="14">W</SvgText>
+              <SvgText x={CENTER}     y={20}          textAnchor="middle" fill={Colors.primary}       fontSize="16" fontWeight="bold">N</SvgText>
+              <SvgText x={SIZE - 14}  y={CENTER + 5}  textAnchor="middle" fill={Colors.textSecondary} fontSize="14">E</SvgText>
+              <SvgText x={CENTER}     y={SIZE - 8}    textAnchor="middle" fill={Colors.textSecondary} fontSize="14">S</SvgText>
+              <SvgText x={14}         y={CENTER + 5}  textAnchor="middle" fill={Colors.textSecondary} fontSize="14">W</SvgText>
             </G>
           </Svg>
 
-          {/* Animated needle (separate Animated.View for perf) */}
+          {/* BUG 3 FIX: needle now uses `spin` (Animated interpolation) instead
+              of the raw static string that was causing instant snapping */}
           <Animated.View
             style={[
               styles.needleWrapper,
-              { width: SIZE, height: SIZE, transform: [{ rotate: `${needleRotation}deg` }] },
+              { width: SIZE, height: SIZE, transform: [{ rotate: spin }] },
             ]}
           >
             <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-              {/* Gold arrow — points toward Qibla */}
               <G>
+                {/* Gold arrowhead — points toward Qibla */}
                 <Path
                   d={`M ${CENTER} 36 L ${CENTER + 9} ${CENTER} L ${CENTER} ${CENTER + 16} L ${CENTER - 9} ${CENTER} Z`}
                   fill={Colors.primary}
@@ -191,14 +193,15 @@ export default function QiblaScreen() {
                   fill={Colors.cardLight}
                   opacity="0.8"
                 />
-                {/* Kaaba at tip */}
+                {/* Kaaba emoji at the tip */}
                 <SvgText x={CENTER} y={30} textAnchor="middle" fontSize="18">🕋</SvgText>
-                {/* Center circle */}
+                {/* Centre pivot */}
                 <Circle cx={CENTER} cy={CENTER} r={10} fill={Colors.primary} />
                 <Circle cx={CENTER} cy={CENTER} r={5}  fill={Colors.background} />
               </G>
             </Svg>
           </Animated.View>
+
         </View>
 
         {/* Info cards */}
@@ -222,16 +225,15 @@ export default function QiblaScreen() {
         <Text style={styles.tip}>
           🌍 Hold phone flat and rotate until the 🕋 arrow points straight up
         </Text>
+
       </View>
     </SafeAreaView>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const getStyles = (Colors, SIZE = 280) => StyleSheet.create({
-  container: {
-    flex:            1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
   center: {
     flex:           1,
     justifyContent: 'center',
@@ -239,11 +241,7 @@ const getStyles = (Colors, SIZE = 280) => StyleSheet.create({
     gap:            16,
     padding:        32,
   },
-  loadingText: {
-    color:    Colors.textSecondary,
-    fontSize: 15,
-    marginTop: 12,
-  },
+  loadingText: { color: Colors.textSecondary, fontSize: 15, marginTop: 12 },
   errorText: {
     color:     Colors.textSecondary,
     fontSize:  15,
@@ -251,24 +249,15 @@ const getStyles = (Colors, SIZE = 280) => StyleSheet.create({
     lineHeight: 22,
   },
   content: {
-    flex:       1,
-    alignItems: 'center',
-    paddingTop: 24,
+    flex:              1,
+    alignItems:        'center',
+    paddingTop:        24,
     paddingHorizontal: 20,
   },
-  title: {
-    fontSize:  24,
-    fontWeight:'700',
-    color:     Colors.text,
-  },
-  subtitle: {
-    fontSize:    13,
-    color:       Colors.textSecondary,
-    marginTop:   4,
-    marginBottom: 28,
-  },
+  title:    { fontSize: 24, fontWeight: '700', color: Colors.text },
+  subtitle: { fontSize: 13, color: Colors.textSecondary, marginTop: 4, marginBottom: 28 },
   compassShell: {
-    position: 'relative',
+    position:      'relative',
     backgroundColor: Colors.background,
     shadowColor:   Colors.primary,
     shadowOffset:  { width: 0, height: 0 },
@@ -308,11 +297,11 @@ const getStyles = (Colors, SIZE = 280) => StyleSheet.create({
     fontWeight: '800',
   },
   tip: {
-    color:     Colors.textMuted,
-    fontSize:  12,
-    textAlign: 'center',
-    marginTop: 20,
-    lineHeight: 18,
+    color:             Colors.textMuted,
+    fontSize:          12,
+    textAlign:         'center',
+    marginTop:         20,
+    lineHeight:        18,
     paddingHorizontal: 12,
   },
 });
