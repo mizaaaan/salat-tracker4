@@ -319,26 +319,26 @@ const getStyles = (Colors) => StyleSheet.create({
     marginTop: 4,
   },
 
-  // Prayer list — single card container (matches streak card style)
+  // Prayer list — single card container (clean white card like More Tools)
   listCard: {
     marginHorizontal: 16,
     marginTop:        8,
-    backgroundColor:  Colors.night,
-    borderRadius:     24,
+    backgroundColor:  Colors.card,
+    borderRadius:     20,
     borderWidth:      1,
-    borderColor:      Colors.primary + '40',
-    overflow:         'hidden',     // clips rows to card corners
-    shadowColor:      Colors.primary,
-    shadowOffset:     { width: 0, height: 0 },
-    shadowOpacity:    0.15,
-    shadowRadius:     20,
-    elevation:        6,
+    borderColor:      Colors.border,
+    overflow:         'hidden',
+    shadowColor:      '#000',
+    shadowOffset:     { width: 0, height: 2 },
+    shadowOpacity:    0.08,
+    shadowRadius:     12,
+    elevation:        4,
   },
 
   // Thin divider between prayer rows
   divider: {
-    height:          1,
-    marginHorizontal: 22,
-    backgroundColor: Colors.border,
+    height:           StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+    backgroundColor:  Colors.border,
   },
 });
