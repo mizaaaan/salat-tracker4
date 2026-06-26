@@ -11,7 +11,7 @@ import { useTheme } from '../constants/ThemeContext';
  * Props:
  *   prayers      — ordered array of trackable prayer names, e.g. TRACKABLE_PRAYERS
  *   completed    — array of completed prayer names
- *   nextPrayer   — name of the next upcoming prayer (gets a soft pulse)
+ *   activePrayer — name of the currently active / next prayer (gets a blink)
  *   prayerMeta   — { [name]: { icon, image, color } }
  */
 export default function PrayerProgressBar({ prayers, completed, activePrayer, prayerMeta }) {
@@ -28,18 +28,41 @@ export default function PrayerProgressBar({ prayers, completed, activePrayer, pr
   const RING_R = (RING_SIZE - RING_STROKE) / 2;
   const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
-  // ── Pulse animation for the next upcoming bead ──
-  const pulse = useRef(new Animated.Value(0)).current;
+  // ── Blink animation: fades the outer glow ring in and out ──
+  const blink = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
+        Animated.timing(blink, {
+          toValue: 0,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(blink, {
           toValue: 1,
-          duration: 1100,
+          duration: 700,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [blink]);
+
+  // ── Ripple animation: expands outward and fades ──
+  const ripple = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(ripple, {
+          toValue: 1,
+          duration: 1200,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(pulse, {
+        Animated.timing(ripple, {
           toValue: 0,
           duration: 0,
           useNativeDriver: true,
@@ -48,10 +71,10 @@ export default function PrayerProgressBar({ prayers, completed, activePrayer, pr
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [ripple]);
 
-  const pulseScale   = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
-  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] });
+  const rippleScale   = ripple.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] });
+  const rippleOpacity = ripple.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.7, 0.5, 0] });
 
   return (
     <View style={styles.wrap}>
@@ -101,42 +124,47 @@ export default function PrayerProgressBar({ prayers, completed, activePrayer, pr
         <View style={styles.connector} pointerEvents="none" />
 
         {prayers.map((name) => {
-          const isDone = completed.includes(name);
-          const isNext = !isDone && name === activePrayer;
-          const meta   = prayerMeta[name] || {};
-          const accent = meta.color || Colors.primary;
+          const isDone  = completed.includes(name);
+          const isNext  = !isDone && name === activePrayer;
+          const meta    = prayerMeta[name] || {};
+          const accent  = meta.color || Colors.primary;
 
           return (
             <View key={name} style={styles.beadColumn}>
               <View style={styles.beadCenter}>
 
-                {/* Pulse ring for the upcoming prayer */}
+                {/* Ripple ring — expands outward */}
                 {isNext && (
                   <Animated.View
                     style={[
-                      styles.beadPulse,
-                      { borderColor: accent, opacity: pulseOpacity, transform: [{ scale: pulseScale }] },
+                      styles.beadRipple,
+                      {
+                        borderColor: accent,
+                        opacity: rippleOpacity,
+                        transform: [{ scale: rippleScale }],
+                      },
                     ]}
                   />
                 )}
 
                 {isDone ? (
                   /* ── Completed: solid coloured circle with ✓ ── */
-                  <View
-                    style={[
-                      styles.bead,
-                      { backgroundColor: accent, borderColor: accent },
-                    ]}
-                  >
+                  <View style={[styles.bead, { backgroundColor: accent, borderColor: accent }]}>
                     <Text style={styles.beadCheck}>✓</Text>
                   </View>
                 ) : (
-                  /* ── Pending / next: round image ── */
-                  <View
+                  /* ── Pending / active: round image with blinking border ── */
+                  <Animated.View
                     style={[
                       styles.bead,
                       styles.beadPending,
-                      isNext && { borderColor: accent, borderWidth: 2.5 },
+                      isNext && {
+                        borderColor: accent,
+                        borderWidth: 3,
+                        opacity: isNext
+                          ? blink.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] })
+                          : 1,
+                      },
                     ]}
                   >
                     {meta.image ? (
@@ -146,10 +174,9 @@ export default function PrayerProgressBar({ prayers, completed, activePrayer, pr
                         resizeMode="cover"
                       />
                     ) : (
-                      /* Fallback: emoji icon if no image */
                       <Text style={styles.beadIcon}>{meta.icon}</Text>
                     )}
-                  </View>
+                  </Animated.View>
                 )}
               </View>
 
@@ -157,7 +184,7 @@ export default function PrayerProgressBar({ prayers, completed, activePrayer, pr
                 style={[
                   styles.beadLabel,
                   isDone && { color: Colors.text, fontWeight: '700' },
-                  isNext && { color: accent, fontWeight: '600' },
+                  isNext && { color: accent, fontWeight: '700' },
                 ]}
                 numberOfLines={1}
               >
@@ -242,12 +269,12 @@ const getStyles = (Colors) => StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  beadPulse: {
+  beadRipple: {
     position:     'absolute',
     width:        BEAD,
     height:       BEAD,
     borderRadius: BEAD / 2,
-    borderWidth:  2,
+    borderWidth:  2.5,
   },
   bead: {
     width:          BEAD,
