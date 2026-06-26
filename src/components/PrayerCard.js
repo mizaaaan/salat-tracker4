@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems:    'center',
-    paddingLeft:   22,
+    paddingLeft:   20,
     paddingRight:  16,
-    paddingTop:    13,
-    paddingBottom: 13,
-    gap:           14,
+    paddingTop:    14,
+    paddingBottom: 14,
+    gap:           12,
   },
 
   wash: { ...StyleSheet.absoluteFillObject },
