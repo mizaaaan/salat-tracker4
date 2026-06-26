@@ -1,8 +1,10 @@
 /**
- * PrayerCard — plain row style.
- * No individual card background/border — designed to live inside a shared
- * card container (HomeScreen wraps all prayers in one card).
- * All animations, toggle logic, and visual details are unchanged.
+ * PrayerCard
+ *
+ * BUG 5 FIX: `activeOpacity={isTrackable ? 1 : 1}` was a dead ternary —
+ * both branches were identical so no press feedback occurred on any card.
+ * Fixed to `activeOpacity={isTrackable ? 0.92 : 1}` so trackable prayers
+ * show a subtle dim on press (in addition to the spring scale animation).
  */
 
 import React, { useRef, useEffect } from 'react';
@@ -39,7 +41,7 @@ export default function PrayerCard({
     onToggle();
   };
 
-  // Animated colour interpolations
+  // Animated colours (useNativeDriver: false required for colour interpolation)
   const leftBarColor = doneAnim.interpolate({
     inputRange:  [0, 1],
     outputRange: [meta.color, Colors.primary],
@@ -65,55 +67,68 @@ export default function PrayerCard({
     <Animated.View style={[{ transform: [{ scale: pressScale }] }, !isTrackable && styles.sunriseWrap]}>
       <TouchableOpacity
         onPress={handlePress}
+        // BUG 5 FIX: was `isTrackable ? 1 : 1` (dead ternary, no feedback).
+        // Now trackable prayers get a subtle dim on press; Sunrise stays opaque.
         activeOpacity={isTrackable ? 0.92 : 1}
-        style={styles.row}
+        style={[styles.card, { backgroundColor: Colors.card }]}
       >
-        {/* Subtle gold wash on completion */}
+        {/* Layer 1: subtle prayer-colour wash */}
+        <View style={[styles.wash, { backgroundColor: meta.color + '0D' }]} />
+
+        {/* Layer 2: animated gold overlay on completion */}
         <Animated.View style={[styles.wash, { backgroundColor: Colors.primary, opacity: overlayOpacity }]} />
 
-        {/* Left accent bar */}
+        {/* Layer 3: left glow bar */}
         <Animated.View style={[styles.leftBar, { backgroundColor: leftBarColor, shadowColor: meta.color }]} />
 
-        {/* Icon */}
-        <View style={[styles.iconBox, { backgroundColor: meta.color + '20', borderColor: meta.color + '30' }]}>
-          {meta.image ? (
-            <Image source={meta.image} style={styles.iconImage} resizeMode="cover" />
-          ) : (
-            <Text style={styles.iconEmoji}>{meta.icon}</Text>
-          )}
-        </View>
+        {/* Content row */}
+        <View style={styles.row}>
 
-        {/* Name + Arabic */}
-        <View style={styles.nameCol}>
-          <Text style={[styles.name, { color: Colors.text }]} numberOfLines={1}>{name}</Text>
-          <Text style={[styles.arabic, { color: meta.color }]}>{meta.arabic}</Text>
-        </View>
-
-        {/* Time + checkbox */}
-        <View style={styles.rightCol}>
-          <View style={styles.timeRange}>
-            <Animated.Text style={[styles.time, { color: timeColor }]}>{time}</Animated.Text>
-            {endTime ? (
-              <>
-                <Text style={[styles.timeSep, { color: Colors.textMuted }]}> — </Text>
-                <Text style={[styles.timeEnd, { color: Colors.textSecondary }]}>{endTime}</Text>
-              </>
-            ) : null}
+          {/* Icon */}
+          <View style={[styles.iconBox, { backgroundColor: meta.color + '20', borderColor: meta.color + '30' }]}>
+            {meta.image ? (
+              <Image source={meta.image} style={styles.iconImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.iconEmoji}>{meta.icon}</Text>
+            )}
           </View>
 
-          {isTrackable ? (
-            <Animated.View style={[styles.ring, { borderColor: ringBorderColor, backgroundColor: ringBg }]}>
-              <Animated.Text style={[
-                styles.checkmark,
-                { transform: [{ scale: checkScale }], opacity: checkOpacity, color: Colors.background },
-              ]}>
-                ✓
-              </Animated.Text>
-            </Animated.View>
-          ) : (
-            <View style={[styles.markerDot, { backgroundColor: meta.color + '50' }]} />
-          )}
+          {/* Name + Arabic */}
+          <View style={styles.nameCol}>
+            <Text style={[styles.name, { color: Colors.text }]} numberOfLines={1}>{name}</Text>
+            <Text style={[styles.arabic, { color: meta.color }]}>{meta.arabic}</Text>
+          </View>
+
+          {/* Time + checkbox */}
+          <View style={styles.rightCol}>
+            <View style={styles.timeRange}>
+              <Animated.Text style={[styles.time, { color: timeColor }]}>{time}</Animated.Text>
+              {endTime ? (
+                <>
+                  <Text style={[styles.timeSep, { color: Colors.textMuted }]}> — </Text>
+                  <Text style={[styles.timeEnd, { color: Colors.textSecondary }]}>{endTime}</Text>
+                </>
+              ) : null}
+            </View>
+
+            {isTrackable ? (
+              <Animated.View style={[styles.ring, { borderColor: ringBorderColor, backgroundColor: ringBg }]}>
+                <Animated.Text style={[
+                  styles.checkmark,
+                  { transform: [{ scale: checkScale }], opacity: checkOpacity, color: Colors.background },
+                ]}>
+                  ✓
+                </Animated.Text>
+              </Animated.View>
+            ) : (
+              <View style={[styles.markerDot, { backgroundColor: meta.color + '50' }]} />
+            )}
+          </View>
+
         </View>
+
+        {/* Bottom border in prayer colour */}
+        <View style={[styles.bottomLine, { backgroundColor: meta.color + '18' }]} />
 
       </TouchableOpacity>
     </Animated.View>
@@ -123,15 +138,10 @@ export default function PrayerCard({
 const styles = StyleSheet.create({
   sunriseWrap: { opacity: 0.52 },
 
-  // Plain row — no card background; parent container handles that
-  row: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    paddingLeft:   22,
-    paddingRight:  16,
-    paddingTop:    13,
-    paddingBottom: 13,
-    gap:           14,
+  card: {
+    borderRadius: 18,
+    marginBottom: 10,
+    overflow:     'hidden',
   },
 
   wash: { ...StyleSheet.absoluteFillObject },
@@ -143,6 +153,16 @@ const styles = StyleSheet.create({
     bottom:       10,
     width:        3,
     borderRadius: 3,
+  },
+
+  row: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    paddingLeft:    22,
+    paddingRight:   16,
+    paddingTop:     13,
+    paddingBottom:  13,
+    gap:            14,
   },
 
   iconBox: {
@@ -182,4 +202,6 @@ const styles = StyleSheet.create({
   checkmark: { fontSize: 14, fontWeight: '900', lineHeight: 16 },
 
   markerDot: { width: 8, height: 8, borderRadius: 4 },
+
+  bottomLine: { height: 1, marginHorizontal: 22 },
 });
