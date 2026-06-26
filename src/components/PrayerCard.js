@@ -1,43 +1,41 @@
+/**
+ * PrayerCard
+ *
+ * BUG 5 FIX: `activeOpacity={isTrackable ? 1 : 1}` was a dead ternary —
+ * both branches were identical so no press feedback occurred on any card.
+ * Fixed to `activeOpacity={isTrackable ? 0.92 : 1}` so trackable prayers
+ * show a subtle dim on press (in addition to the spring scale animation).
+ */
+
 import React, { useRef, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated, Image,
 } from 'react-native';
 import { useTheme } from '../constants/ThemeContext';
 
-/**
- * PrayerCard — redesigned, stunning
- *
- * Props:
- *   name        — 'Fajr' | 'Dhuhr' | ... | 'Sunrise'
- *   meta        — { icon, arabic, color }
- *   time        — formatted string, e.g. '4:23 AM'
- *   isCompleted — boolean
- *   isTrackable — boolean (Sunrise is display-only)
- *   onToggle    — () => void
- */
 export default function PrayerCard({
   name, meta, time, endTime, isCompleted, isTrackable, onToggle,
 }) {
   const { colors: Colors } = useTheme();
 
   // ── Animations ────────────────────────────────────────────────────────────
-  const pressScale  = useRef(new Animated.Value(1)).current;
-  const doneAnim    = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
-  const checkScale  = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
-  const checkOpacity= useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const pressScale   = useRef(new Animated.Value(1)).current;
+  const doneAnim     = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const checkScale   = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
+  const checkOpacity = useRef(new Animated.Value(isCompleted ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.spring(doneAnim,     { toValue: isCompleted ? 1 : 0, tension: 80, friction: 8, useNativeDriver: false }),
+      Animated.spring(doneAnim,     { toValue: isCompleted ? 1 : 0, tension: 80,  friction: 8, useNativeDriver: false }),
       Animated.spring(checkScale,   { toValue: isCompleted ? 1 : 0, tension: 120, friction: 6, useNativeDriver: true }),
-      Animated.timing(checkOpacity, { toValue: isCompleted ? 1 : 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(checkOpacity, { toValue: isCompleted ? 1 : 0, duration: 150,             useNativeDriver: true }),
     ]).start();
   }, [isCompleted]);
 
   const handlePress = () => {
     if (!isTrackable) return;
     Animated.sequence([
-      Animated.timing(pressScale, { toValue: 0.97, duration: 70, useNativeDriver: true }),
+      Animated.timing(pressScale, { toValue: 0.97, duration: 70,  useNativeDriver: true }),
       Animated.spring(pressScale,  { toValue: 1,   tension: 200, friction: 5, useNativeDriver: true }),
     ]).start();
     onToggle();
@@ -69,31 +67,24 @@ export default function PrayerCard({
     <Animated.View style={[{ transform: [{ scale: pressScale }] }, !isTrackable && styles.sunriseWrap]}>
       <TouchableOpacity
         onPress={handlePress}
-        activeOpacity={isTrackable ? 1 : 1}
+        // BUG 5 FIX: was `isTrackable ? 1 : 1` (dead ternary, no feedback).
+        // Now trackable prayers get a subtle dim on press; Sunrise stays opaque.
+        activeOpacity={isTrackable ? 0.92 : 1}
         style={[styles.card, { backgroundColor: Colors.card }]}
       >
-        {/* ── Layer 1: subtle prayer-colour wash left→right ── */}
+        {/* Layer 1: subtle prayer-colour wash */}
         <View style={[styles.wash, { backgroundColor: meta.color + '0D' }]} />
 
-        {/* ── Layer 2: animated gold overlay on completion ── */}
-        <Animated.View style={[
-          styles.wash,
-          { backgroundColor: Colors.primary, opacity: overlayOpacity },
-        ]} />
+        {/* Layer 2: animated gold overlay on completion */}
+        <Animated.View style={[styles.wash, { backgroundColor: Colors.primary, opacity: overlayOpacity }]} />
 
-        {/* ── Layer 3: left glow bar ── */}
-        <Animated.View style={[
-          styles.leftBar,
-          {
-            backgroundColor: leftBarColor,
-            shadowColor:      meta.color,
-          },
-        ]} />
+        {/* Layer 3: left glow bar */}
+        <Animated.View style={[styles.leftBar, { backgroundColor: leftBarColor, shadowColor: meta.color }]} />
 
-        {/* ── Content row ── */}
+        {/* Content row */}
         <View style={styles.row}>
 
-          {/* Icon — prayer image */}
+          {/* Icon */}
           <View style={[styles.iconBox, { backgroundColor: meta.color + '20', borderColor: meta.color + '30' }]}>
             {meta.image ? (
               <Image source={meta.image} style={styles.iconImage} resizeMode="cover" />
@@ -104,60 +95,39 @@ export default function PrayerCard({
 
           {/* Name + Arabic */}
           <View style={styles.nameCol}>
-            <Text style={[styles.name, { color: Colors.text }]} numberOfLines={1}>
-              {name}
-            </Text>
-            <Text style={[styles.arabic, { color: meta.color }]}>
-              {meta.arabic}
-            </Text>
+            <Text style={[styles.name, { color: Colors.text }]} numberOfLines={1}>{name}</Text>
+            <Text style={[styles.arabic, { color: meta.color }]}>{meta.arabic}</Text>
           </View>
 
-          {/* Time + status */}
+          {/* Time + checkbox */}
           <View style={styles.rightCol}>
-            {/* Start → End time range */}
             <View style={styles.timeRange}>
-              <Animated.Text style={[styles.time, { color: timeColor }]}>
-                {time}
-              </Animated.Text>
+              <Animated.Text style={[styles.time, { color: timeColor }]}>{time}</Animated.Text>
               {endTime ? (
                 <>
                   <Text style={[styles.timeSep, { color: Colors.textMuted }]}> — </Text>
-                  <Text style={[styles.timeEnd, { color: Colors.textSecondary }]}>
-                    {endTime}
-                  </Text>
+                  <Text style={[styles.timeEnd, { color: Colors.textSecondary }]}>{endTime}</Text>
                 </>
               ) : null}
             </View>
 
             {isTrackable ? (
-              /* Animated ring → filled circle on completion */
-              <Animated.View style={[
-                styles.ring,
-                {
-                  borderColor:     ringBorderColor,
-                  backgroundColor: ringBg,
-                },
-              ]}>
+              <Animated.View style={[styles.ring, { borderColor: ringBorderColor, backgroundColor: ringBg }]}>
                 <Animated.Text style={[
                   styles.checkmark,
-                  {
-                    transform: [{ scale: checkScale }],
-                    opacity:    checkOpacity,
-                    color:      Colors.background,
-                  },
+                  { transform: [{ scale: checkScale }], opacity: checkOpacity, color: Colors.background },
                 ]}>
                   ✓
                 </Animated.Text>
               </Animated.View>
             ) : (
-              /* Sunrise: no checkbox, show a small "marker" dot */
               <View style={[styles.markerDot, { backgroundColor: meta.color + '50' }]} />
             )}
           </View>
 
         </View>
 
-        {/* ── Bottom border line in prayer colour (very subtle) ── */}
+        {/* Bottom border in prayer colour */}
         <View style={[styles.bottomLine, { backgroundColor: meta.color + '18' }]} />
 
       </TouchableOpacity>
@@ -166,21 +136,16 @@ export default function PrayerCard({
 }
 
 const styles = StyleSheet.create({
-
   sunriseWrap: { opacity: 0.52 },
 
   card: {
-    borderRadius:  18,
-    marginBottom:  10,
-    overflow:      'hidden',
+    borderRadius: 18,
+    marginBottom: 10,
+    overflow:     'hidden',
   },
 
-  // Absolute fill layers (rendered before content, so they appear behind)
-  wash: {
-    ...StyleSheet.absoluteFillObject,
-  },
+  wash: { ...StyleSheet.absoluteFillObject },
 
-  // Left accent bar — no glow, just a clean coloured strip
   leftBar: {
     position:     'absolute',
     left:         0,
@@ -190,18 +155,16 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
-  // Main content row
   row: {
     flexDirection:  'row',
     alignItems:     'center',
-    paddingLeft:    22,   // room for the bar + gap
+    paddingLeft:    22,
     paddingRight:   16,
     paddingTop:     13,
     paddingBottom:  13,
     gap:            14,
   },
 
-  // Icon — single clean box
   iconBox: {
     width:          44,
     height:         44,
@@ -210,61 +173,24 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  iconEmoji: {
-    fontSize: 22,
-    lineHeight: 26,
-  },
-  iconImage: {
-    width:        40,
-    height:       40,
-    borderRadius: 10,
-  },
+  iconEmoji: { fontSize: 22, lineHeight: 26 },
+  iconImage: { width: 40, height: 40, borderRadius: 10 },
 
-  // Text
-  nameCol: {
-    flex:    1,
-    gap:     3,
-  },
-  name: {
-    fontSize:      16,
-    fontWeight:    '700',
-    letterSpacing: 0.3,
-  },
-  arabic: {
-    fontSize:      13,
-    fontWeight:    '600',
-    letterSpacing: 0.5,
-  },
+  nameCol: { flex: 1, gap: 3 },
+  name:    { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  arabic:  { fontSize: 13, fontWeight: '600', letterSpacing: 0.5 },
 
-  // Right: time + ring
-  rightCol: {
-    alignItems: 'flex-end',
-    gap:        10,
-  },
+  rightCol: { alignItems: 'flex-end', gap: 10 },
   timeRange: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    flexWrap:      'wrap',
-    justifyContent:'flex-end',
+    flexDirection:  'row',
+    alignItems:     'center',
+    flexWrap:       'wrap',
+    justifyContent: 'flex-end',
   },
-  time: {
-    fontSize:      13,
-    fontWeight:    '700',
-    letterSpacing: 0.3,
-    textAlign:     'right',
-  },
-  timeSep: {
-    fontSize:   12,
-    fontWeight: '400',
-  },
-  timeEnd: {
-    fontSize:      13,
-    fontWeight:    '500',
-    letterSpacing: 0.3,
-    textAlign:     'right',
-  },
+  time:    { fontSize: 13, fontWeight: '700', letterSpacing: 0.3, textAlign: 'right' },
+  timeSep: { fontSize: 12, fontWeight: '400' },
+  timeEnd: { fontSize: 13, fontWeight: '500', letterSpacing: 0.3, textAlign: 'right' },
 
-  // Completion ring
   ring: {
     width:          30,
     height:         30,
@@ -273,22 +199,9 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  checkmark: {
-    fontSize:   14,
-    fontWeight: '900',
-    lineHeight: 16,
-  },
+  checkmark: { fontSize: 14, fontWeight: '900', lineHeight: 16 },
 
-  // Sunrise marker dot (no checkbox)
-  markerDot: {
-    width:        8,
-    height:       8,
-    borderRadius: 4,
-  },
+  markerDot: { width: 8, height: 8, borderRadius: 4 },
 
-  // Bottom line
-  bottomLine: {
-    height:           1,
-    marginHorizontal: 22,
-  },
+  bottomLine: { height: 1, marginHorizontal: 22 },
 });
