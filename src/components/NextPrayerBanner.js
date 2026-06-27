@@ -42,18 +42,17 @@ function computeArcLayout(screenW, screenH) {
   const LEFT_X  = 10;
   const RIGHT_X = ARC_W - 10;
   const ARC_RX  = (RIGHT_X - LEFT_X) / 2;
-  // Raise the height cap in landscape so the arc curves nicely.
-  // Portrait  → MAX_ARC_H ≈ 150 (same as before).
-  // Landscape → MAX_ARC_H up to 200, keeping card < 60 % of screenH.
+  // Portrait  → cap 150px (near-semicircle).
+  // Landscape → cap 120px so CARD_H ≈ 218px fits within a ~390px landscape screen,
+  //             leaving room for greeting bar + nav bar.
   const MAX_ARC_H = screenH
-    ? Math.min(screenH * 0.45, isLandscape ? 200 : 150)
+    ? Math.min(screenH * 0.30, isLandscape ? 120 : 150)
     : 150;
   const ARC_RY  = Math.min(ARC_RX, MAX_ARC_H);
   const ARC_CX  = (LEFT_X + RIGHT_X) / 2;
   const BASE_Y  = ARC_RY + 8;
   const ARC_H   = BASE_Y + 8;
-  // +82 gives enough room for topRow (~34px) + dots (~11px) + padding (~37px)
-  // Previously +57 caused page dots to be clipped by overflow:hidden.
+  // +82 accounts for topRow (~34px) + dots (~11px) + padding/spacers (~37px).
   const CARD_H  = ARC_H + 82;
 
   const arcPointAt = (t) => {
