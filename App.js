@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, useWindowDimensions } from 'react-native';
+import { Image, Platform, useWindowDimensions } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ Notifications.setNotificationHandler({
 
 const Tab = createBottomTabNavigator();
 
-// ── Unchanged from original — no useWindowDimensions here ────────────────────
+// Identical to original
 const TabIcon = ({ source, color }) => (
   <Image
     source={source}
@@ -63,13 +63,15 @@ function Navigation() {
             shadowOpacity:   0.06,
             shadowRadius:    6,
             elevation:       8,
-            // Portrait: zero overrides — SafeAreaProvider handles insets naturally.
-            // Landscape: explicit size because the bar auto-shrinks too small.
-            ...(isLandscape ? { height: 60, paddingBottom: 8, paddingTop: 4 } : {}),
+            // Portrait: NO overrides at all â keeps original behaviour exactly.
+            // Landscape: ONLY height is bumped so icons/labels aren't squished.
+            //            paddingBottom is NOT set â React Navigation still handles
+            //            the home-indicator safe area automatically.
+            ...(isLandscape ? { height: Platform.OS === 'ios' ? 70 : 60 } : {}),
           },
           tabBarActiveTintColor:   Colors.primary,
           tabBarInactiveTintColor: Colors.textSecondary,
-          tabBarShowLabel:  true,
+          tabBarShowLabel:    true,
           tabBarLabelStyle: {
             fontSize:      10,
             fontWeight:    '600',
